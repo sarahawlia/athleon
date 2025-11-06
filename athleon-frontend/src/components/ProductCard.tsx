@@ -80,13 +80,20 @@ const ProductCard = ({ id, name, price, image, category, description = "", sizes
     <>
       <Link to={`/product/${id}`} className="block">
         <Card className="group overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-        <div className="aspect-square overflow-hidden bg-muted">
-          <img
-            src={image}
-            alt={name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          />
-        </div>
+        {image ? (
+          <div className="aspect-square overflow-hidden bg-muted">
+            <img
+              src={image}
+              alt={name}
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            />
+          </div>
+        ) : (
+          // no image uploaded; render an empty square to keep layout stable
+          <div className="aspect-square overflow-hidden bg-muted flex items-center justify-center">
+            <span className="text-sm text-muted-foreground">&nbsp;</span>
+          </div>
+        )}
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{category}</p>
           <h3 className="font-semibold text-foreground mb-2 line-clamp-2">{name}</h3>

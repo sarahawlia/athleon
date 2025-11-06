@@ -9,6 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShoppingCart, Heart, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import futsalImg from "@/assets/category-futsal.jpg";
+import padelImg from "@/assets/category-padel.jpg";
+import basketImg from "@/assets/category-basket.jpg";
+import renangImg from "@/assets/category-renang.jpg";
 
 const backendBase = import.meta.env.VITE_API_URL
   ? String(import.meta.env.VITE_API_URL).replace(/\/api\/?$/, "")
@@ -21,21 +25,42 @@ const ProductDetail = () => {
 
   const [product, setProduct] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<any[]>([]);
 
   // Ambil produk berdasarkan ID URL dari API
   useEffect(() => {
     let mounted = true;
     if (!id) return;
     setLoading(true);
+    // fetch product detail
     api
       .get(`/produk/${id}`)
       .then((res) => {
         if (!mounted) return;
         const p = res.data;
         if (p) {
+          const resolveImage = (p: any) => {
+            const g = p.gambar;
+            if (!g) {
+              // map to local asset by product name when backend only stored filename
+              if (p.nama === 'Jersey Futsal Pro Elite') return futsalImg;
+              if (p.nama === 'Padel Training Set') return padelImg;
+              if (p.nama === 'Basketball Jersey Classic') return basketImg;
+              if (p.nama === 'Pro Swimming Suit') return renangImg;
+              return "";
+            }
+            if (g.startsWith('http') || g.includes('/')) return `${backendBase}/${g}`;
+            // bare filename: local first, otherwise backend images folder
+            if (p.nama === 'Jersey Futsal Pro Elite') return futsalImg;
+            if (p.nama === 'Padel Training Set') return padelImg;
+            if (p.nama === 'Basketball Jersey Classic') return basketImg;
+            if (p.nama === 'Pro Swimming Suit') return renangImg;
+            return `${backendBase}/images/products/${g}`;
+          };
+
           const mapped = {
             ...p,
-            image: p.gambar ? `${backendBase}/${p.gambar}` : "",
+            image: resolveImage(p),
             category: p.kategori ?? p.category ?? "",
             // normalize fields coming from backend
             name: p.nama ?? p.name ?? "",
@@ -50,6 +75,29 @@ const ProductDetail = () => {
       })
       .catch(() => setProduct(null))
       .finally(() => mounted && setLoading(false));
+    // also fetch product list for related products
+    api
+      .get('/produk')
+      .then((res) => {
+        if (!mounted) return;
+        const resolveImagePublic = (p: any) => {
+          const g = p.gambar;
+          if (!g) return "";
+          if (g.startsWith('http') || g.includes('/')) return `${backendBase}/${g}`;
+          return `${backendBase}/images/products/${g}`;
+        };
+
+        const mapped = (res.data || []).map((p: any) => ({
+          ...p,
+          image: resolveImagePublic(p),
+          name: p.nama ?? p.name ?? "",
+          price: Number(p.harga ?? p.price ?? 0),
+          description: p.deskripsi ?? p.description ?? "",
+          sizes: p.ukuran ? String(p.ukuran).split(',') : [],
+        }));
+        setProducts(mapped);
+      })
+      .catch(() => setProducts([]));
     return () => {
       mounted = false;
     };
@@ -117,11 +165,15 @@ const ProductDetail = () => {
             {/* Product Image */}
             <div className="space-y-4">
               <div className="aspect-square rounded-lg overflow-hidden bg-muted">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
+                {product.image ? (
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">&nbsp;</div>
+                )}
               </div>
             </div>
 
@@ -221,35 +273,30 @@ const ProductDetail = () => {
                     Panduan Ukuran (cm)
                   </h3>
                   <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left p-3 font-semibold">Size</th>
-                          <th className="text-left p-3 font-semibold">
-                            Lingkar Dada
-                          </th>
-                          <th className="text-left p-3 font-semibold">
-                            Panjang
-                          </th>
-                          <th className="text-left p-3 font-semibold">
-                            Lebar Bahu
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {product.sizeChart.map((row) => (
-                          <tr
-                            key={row.size}
-                            className="border-b hover:bg-muted/50"
-                          >
-                            <td className="p-3 font-medium">{row.size}</td>
-                            <td className="p-3">{row.chest} cm</td>
-                            <td className="p-3">{row.length} cm</td>
-                            <td className="p-3">{row.shoulder} cm</td>
+                    {Array.isArray(product.sizeChart) && product.sizeChart.length > 0 ? (
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-3 font-semibold">Size</th>
+                            <th className="text-left p-3 font-semibold">Lingkar Dada</th>
+                            <th className="text-left p-3 font-semibold">Panjang</th>
+                            <th className="text-left p-3 font-semibold">Lebar Bahu</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {(product.sizeChart || []).map((row: any) => (
+                            <tr key={row.size} className="border-b hover:bg-muted/50">
+                              <td className="p-3 font-medium">{row.size}</td>
+                              <td className="p-3">{row.chest} cm</td>
+                              <td className="p-3">{row.length} cm</td>
+                              <td className="p-3">{row.shoulder} cm</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p className="text-muted-foreground">Tidak ada size chart untuk produk ini.</p>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground mt-4">
                     * Toleransi ukuran ±1-2 cm
@@ -258,14 +305,18 @@ const ProductDetail = () => {
 
                 <TabsContent value="features" className="space-y-4">
                   <h3 className="text-lg font-semibold">Fitur Produk</h3>
-                  <ul className="space-y-2">
-                    {product.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <span className="text-primary mt-1">✓</span>
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {Array.isArray(product.features) && product.features.length > 0 ? (
+                    <ul className="space-y-2">
+                      {(product.features || []).map((feature: any, index: number) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-primary mt-1">✓</span>
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted-foreground">Tidak ada informasi fitur untuk produk ini.</p>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>

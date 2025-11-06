@@ -4,6 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { api } from "@/lib/api";
+import futsalImg from "@/assets/category-futsal.jpg";
+import padelImg from "@/assets/category-padel.jpg";
+import basketImg from "@/assets/category-basket.jpg";
+import renangImg from "@/assets/category-renang.jpg";
 
 const backendBase = import.meta.env.VITE_API_URL
   ? String(import.meta.env.VITE_API_URL).replace(/\/api\/?$/, "")
@@ -24,11 +28,29 @@ const SearchDialog = ({ open, onOpenChange }: SearchDialogProps) => {
       .get("/produk")
       .then((res) => {
         if (!mounted) return;
+        const localProductImages: Record<string, string> = {
+          'Jersey Futsal Pro Elite': futsalImg,
+          'Padel Training Set': padelImg,
+          'Basketball Jersey Classic': basketImg,
+          'Pro Swimming Suit': renangImg,
+        };
+
+        const resolveImage = (p: any) => {
+          const g = p.gambar;
+          if (!g) return localProductImages[p.nama] ?? "";
+          if (g.startsWith('http') || g.includes('/')) return `${backendBase}/${g}`;
+          return localProductImages[p.nama] ?? `${backendBase}/images/products/${g}`;
+        };
+
         setAllProducts((res.data || []).map((p: any) => ({
-          ...p,
-          image: p.gambar ? `${backendBase}/${p.gambar}` : "",
+          // normalize fields used by the UI/search filter
+          id: p.id ?? p.ID ?? null,
+          name: p.nama ?? p.name ?? "",
           category: p.kategori ?? p.category ?? "",
           price: Number(p.harga ?? p.price ?? 0),
+          image: resolveImage(p),
+          // keep raw payload for any future uses
+          _raw: p,
         })));
       })
       .catch(() => setAllProducts([]));
@@ -38,10 +60,12 @@ const SearchDialog = ({ open, onOpenChange }: SearchDialogProps) => {
   }, []);
 
   const filteredProducts = searchQuery
-    ? allProducts.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.category.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? allProducts.filter((product) => {
+        const q = searchQuery.toLowerCase();
+        const name = (product.name || "").toString().toLowerCase();
+        const cat = (product.category || "").toString().toLowerCase();
+        return name.includes(q) || cat.includes(q);
+      })
     : [];
 
   return (
